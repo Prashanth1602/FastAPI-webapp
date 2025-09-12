@@ -1,10 +1,10 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from models import Movie, User
-from schemas import MovieCreate, MovieResponse
-from database import get_db
-from dependencies import get_current_user
+from app.models import Movie, User
+from app.schemas import MovieCreate, MovieResponse
+from app.database import get_db
+from app.dependencies import get_current_user
 
 router = APIRouter()
 

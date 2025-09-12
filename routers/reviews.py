@@ -1,10 +1,10 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from models import Review, Movie, User
-from schemas import ReviewCreate, ReviewOut, ReviewUpdate
-from database import get_db
-from dependencies import get_current_user
+from app.models import Review, Movie, User
+from app.schemas import ReviewCreate, ReviewOut, ReviewUpdate
+from app.database import get_db
+from app.dependencies import get_current_user
 
 router = APIRouter()
 
