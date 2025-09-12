@@ -9,13 +9,18 @@ A comprehensive REST API for managing movies and user reviews, built with FastAP
 - **Review System**: Users can create, read, update, and delete reviews for movies
 - **Database**: PostgreSQL with SQLAlchemy ORM
 - **Security**: Password hashing with bcrypt, JWT tokens, input validation
+- **Testing**: Comprehensive test suite with pytest
 
 ## Setup
 
 ### Backend Setup
 
-1. **Install Python Dependencies**
+1. **Install Dependencies**
    ```bash
+   # Install in editable mode (recommended)
+   pip install -e .
+   
+   # OR install from requirements.txt
    pip install -r requirements.txt
    ```
 
@@ -38,6 +43,26 @@ A comprehensive REST API for managing movies and user reviews, built with FastAP
   ```bash
   uvicorn app.main:app --reload
   ```
+
+### Testing
+
+Run the test suite:
+```bash
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_main.py
+```
+
+The test suite includes:
+- Root endpoint testing
+- User authentication (register/login)
+- Movie CRUD operations
+- Review CRUD operations with duplicate prevention
 
 ### Database Migrations (Alembic)
 
@@ -175,6 +200,41 @@ The API returns appropriate HTTP status codes:
 - `404`: Not Found
 - `422`: Validation Error
 
+## Project Structure
+
+```
+MovieReviewAPI/
+├── __init__.py           # Package initialization
+├── app/                  # Main application code
+│   ├── database.py      # Database connection and session
+│   ├── dependencies.py  # FastAPI dependencies (auth)
+│   ├── main.py          # FastAPI app and route registration
+│   ├── models.py        # SQLAlchemy database models
+│   ├── schemas.py       # Pydantic schemas for request/response
+│   └── utils.py         # Utility functions (hashing, JWT)
+├── routers/             # API route modules
+│   ├── __init__.py     # Package initialization
+│   ├── auth.py         # Authentication routes
+│   ├── movies.py       # Movie CRUD routes
+│   └── reviews.py      # Review CRUD routes
+├── tests/               # Test suite
+│   ├── conftest.py     # Pytest fixtures and configuration
+│   └── test_main.py    # Test cases for all endpoints
+├── alembic/            # Database migrations
+│   ├── env.py          # Alembic environment configuration
+│   ├── README          # Alembic documentation
+│   ├── script.py.mako  # Migration template
+│   └── versions/       # Migration files
+│       ├── 978aa1ff34a8_dummy_column.py
+│       └── 9c5a8717d0cd_dummy_column_remove.py
+├── alembic.ini         # Alembic configuration
+├── Dockerfile          # Docker configuration
+├── env.example         # Environment variables template
+├── pyproject.toml      # Project configuration and dependencies
+├── readme.md          # This file
+└── requirements.txt    # Alternative dependency list
+```
+
 ### Docker
 
 Build and run with Docker:
@@ -186,6 +246,85 @@ docker build -t movie-review-api .
 # Run container (loads env from .env and exposes port 8000)
 docker run --env-file .env -p 8000:8000 movie-review-api
 ```
+
+## Contributing
+
+We welcome contributions! Follow the steps below to contribute:
+
+### 1. Fork the Repository
+
+* Click the Fork button on the top-right corner of this repo (on GitHub).
+* This creates a copy of the project under your GitHub account.
+
+### 2. Clone Your Fork
+
+Clone your forked repository to your local machine:
+
+```bash
+git clone https://github.com/<your-username>/MovieReviewAPI.git
+cd MovieReviewAPI
+```
+
+### 3. Create a New Branch
+
+Always create a new branch before making changes:
+
+```bash
+git checkout -b feature/my-feature
+```
+
+Replace `feature/my-feature` with something descriptive, like `feature/movie-search` or `bugfix/login-error`.
+
+### 4. Make Your Changes
+
+* Add your new code or fix bugs.
+* Stage your changes:
+
+```bash
+git add .
+```
+
+* Commit with a meaningful message:
+
+```bash
+git commit -m "Add movie search functionality with pagination"
+```
+
+### 5. Push to Your Fork
+
+Push your branch to your forked repo:
+
+```bash
+git push origin feature/my-feature
+```
+
+### 6. Open a Pull Request
+
+1. Go to your fork on GitHub.
+2. You’ll see a prompt to Open a Pull Request (PR).
+3. Select your branch (`feature/my-feature`) and create a PR into the `main` branch of this repository.
+4. Add a clear title and description of your changes.
+
+### 7. Code Review & Merge
+
+* The project maintainer (me) will review your PR.
+* If everything looks good, it will be merged into the main branch.
+
+### 8. (Optional) Cleanup
+
+After your branch is merged, you can delete it to keep things tidy:
+
+```bash
+# Delete branch locally
+git branch -d feature/my-feature
+
+# Delete branch from your fork on GitHub
+git push origin --delete feature/my-feature
+```
+
+---
+
+That’s it! Thanks for contributing to **Movie Review API** 
 
 ## License
 
