@@ -13,7 +13,12 @@ def test_auth_register_and_login(client):
 
     r = client.post("/auth/login", data={"username": "prashanth", "password": "pg123"})
     assert r.status_code == 200
-    assert r.json()["token_type"] == "bearer"
+    response_data = r.json()
+    assert response_data["token_type"] == "bearer"
+    assert "access_token" in response_data
+    assert "refresh_token" in response_data
+    assert response_data["access_token"] is not None
+    assert response_data["refresh_token"] is not None
 
 
 def test_movies_crud_flow(client):

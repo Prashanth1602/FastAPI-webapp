@@ -1,10 +1,10 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 from app.models import Movie, User
 from app.schemas import MovieCreate, MovieResponse
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_role
 
 router = APIRouter()
 
@@ -12,7 +12,7 @@ router = APIRouter()
 def create_movie(
     movie: MovieCreate, 
     db: Session = Depends(get_db), 
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_role("admin"))
 ):
     new_movie = Movie(
         title=movie.title,
@@ -46,7 +46,7 @@ def update_movie(
     movie_id: int, 
     movie: MovieCreate, 
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_role("admin"))
 ):
     db_movie = db.query(Movie).filter(Movie.id == movie_id).first()
     if not db_movie:
@@ -65,7 +65,7 @@ def update_movie(
 def delete_movie(
     movie_id: int, 
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_role("admin"))
 ):
     movie = db.query(Movie).filter(Movie.id == movie_id).first()
     if not movie:

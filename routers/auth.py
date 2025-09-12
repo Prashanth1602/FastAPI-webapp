@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
-from app.models import User
-from app.schemas import UserCreate, UserOut, Token
+from app.models import User, RefreshToken
+from app.schemas import UserCreate, UserOut, Token, TokenRequest, TokenResponse
 from app.database import get_db
-from app.utils import hash_password, verify_password, create_access_token
+from app.utils import hash_password, verify_password, create_access_token, create_refresh_token, decode_refresh_token
+from jose import JWTError
+from datetime import datetime, timedelta
+from app.dependencies import get_current_user
 
 router = APIRouter()
 
@@ -35,15 +38,66 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
 @router.post('/login', response_model=Token)
 def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
 
-    user = db.query(User).filter(User.username == form_data.username).first()
-    
-    if not user or not verify_password(form_data.password, user.password_hash):
+   user = db.query(User).filter(User.username == form_data.username).first()
+
+   if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )   
 
-    access_token = create_access_token(data={"sub": str(user.id)})
+   access_token = create_access_token(data={"sub": str(user.id)})
+   refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+   # Save refresh token to database
+   db_refresh_token = RefreshToken(
+       user_id=user.id,
+       token=refresh_token
+   )
+   db.add(db_refresh_token)
+   db.commit()
+
+   return {
+        "access_token": access_token, 
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh_token_endpoint(request: TokenRequest, db: Session = Depends(get_db)):
+
+    token_str = request.refresh_token
+
+    token_in_db = db.query(RefreshToken).filter_by(token=token_str).first()
+    if not token_in_db:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+    try:
+        payload = decode_refresh_token(token_str)
+        user_id = payload.get("sub")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
+
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    new_access_token = create_access_token({"sub": str(user.id)})
+    new_refresh_token = create_refresh_token({"sub": str(user.id)})
+
+    token_in_db.token = new_refresh_token
+    db.commit()
+
+    return {"access_token": new_access_token, "refresh_token": new_refresh_token}
     
-    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/auth/logout")
+def logout_user(request: TokenRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+
+    token_in_db = db.query(RefreshToken).filter_by(token=request.refresh_token).first()
+
+    token_in_db.revoked = True
+    db.commit()
+    return {"message": "Logged out successfully"}

@@ -1,5 +1,6 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Index
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Index, Boolean
+from datetime import timedelta  
 from sqlalchemy.types import DateTime
 from datetime import datetime
 
@@ -12,6 +13,7 @@ class User(Base):
     username = Column(String, unique=True, nullable=False, index=True)
     email = Column(String, unique=True, nullable=False, index=True)
     password_hash = Column(String, nullable=False)
+    role = Column(String, default='user')
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     
     # Create an index on username and email for faster lookups
@@ -57,3 +59,13 @@ class Review(Base):
         Index('idx_review_rating', 'rating'),
         Index('idx_review_created', 'created_at'),
     )
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    token = Column(String, unique=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, default=lambda: datetime.utcnow() + timedelta(days=7))
+    revoked = Column(Boolean, default=False)
