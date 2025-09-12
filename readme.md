@@ -9,13 +9,18 @@ A comprehensive REST API for managing movies and user reviews, built with FastAP
 - **Review System**: Users can create, read, update, and delete reviews for movies
 - **Database**: PostgreSQL with SQLAlchemy ORM
 - **Security**: Password hashing with bcrypt, JWT tokens, input validation
+- **Testing**: Comprehensive test suite with pytest
 
 ## Setup
 
 ### Backend Setup
 
-1. **Install Python Dependencies**
+1. **Install Dependencies**
    ```bash
+   # Install in editable mode (recommended)
+   pip install -e .
+   
+   # OR install from requirements.txt
    pip install -r requirements.txt
    ```
 
@@ -38,6 +43,26 @@ A comprehensive REST API for managing movies and user reviews, built with FastAP
   ```bash
   uvicorn app.main:app --reload
   ```
+
+### Testing
+
+Run the test suite:
+```bash
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_main.py
+```
+
+The test suite includes:
+- Root endpoint testing
+- User authentication (register/login)
+- Movie CRUD operations
+- Review CRUD operations with duplicate prevention
 
 ### Database Migrations (Alembic)
 
@@ -174,6 +199,41 @@ The API returns appropriate HTTP status codes:
 - `403`: Forbidden
 - `404`: Not Found
 - `422`: Validation Error
+
+## Project Structure
+
+```
+MovieReviewAPI/
+├── __init__.py           # Package initialization
+├── app/                  # Main application code
+│   ├── database.py      # Database connection and session
+│   ├── dependencies.py  # FastAPI dependencies (auth)
+│   ├── main.py          # FastAPI app and route registration
+│   ├── models.py        # SQLAlchemy database models
+│   ├── schemas.py       # Pydantic schemas for request/response
+│   └── utils.py         # Utility functions (hashing, JWT)
+├── routers/             # API route modules
+│   ├── __init__.py     # Package initialization
+│   ├── auth.py         # Authentication routes
+│   ├── movies.py       # Movie CRUD routes
+│   └── reviews.py      # Review CRUD routes
+├── tests/               # Test suite
+│   ├── conftest.py     # Pytest fixtures and configuration
+│   └── test_main.py    # Test cases for all endpoints
+├── alembic/            # Database migrations
+│   ├── env.py          # Alembic environment configuration
+│   ├── README          # Alembic documentation
+│   ├── script.py.mako  # Migration template
+│   └── versions/       # Migration files
+│       ├── 978aa1ff34a8_dummy_column.py
+│       └── 9c5a8717d0cd_dummy_column_remove.py
+├── alembic.ini         # Alembic configuration
+├── Dockerfile          # Docker configuration
+├── env.example         # Environment variables template
+├── pyproject.toml      # Project configuration and dependencies
+├── readme.md          # This file
+└── requirements.txt    # Alternative dependency list
+```
 
 ### Docker
 
