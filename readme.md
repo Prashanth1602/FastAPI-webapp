@@ -1,6 +1,6 @@
 # Movie Review API
 
-A comprehensive REST API for managing movies and user reviews, built with FastAPI and PostgreSQL, featuring a modern frontend for easy testing and interaction.
+A comprehensive REST API for managing movies and user reviews, built with FastAPI and PostgreSQL.
 
 ## Features
 
@@ -32,12 +32,21 @@ A comprehensive REST API for managing movies and user reviews, built with FastAP
 3. **Database Setup**
    - Create a PostgreSQL database named `moviedb`
    - Update the `DATABASE_URL` in your `.env` file
-   - The application will automatically create tables on startup
+   - Apply migrations with Alembic: `alembic upgrade head`
 
 4. **Run the Backend**
-   ```bash
-   uvicorn main:app --reload
-   ```
+  ```bash
+  uvicorn app.main:app --reload
+  ```
+
+### Database Migrations (Alembic)
+
+Run migrations after configuring your `.env`:
+
+```bash
+# Ensure DATABASE_URL is set in .env
+alembic upgrade head
+```
 
 ## Access Points
 
@@ -58,13 +67,13 @@ A comprehensive REST API for managing movies and user reviews, built with FastAP
 - `DELETE /movies/{movie_id}` - Delete a movie (requires authentication)
 
 ### Reviews
-- `POST /reviews/movies/{movie_id}/reviews` - Create a review for a movie (requires authentication)
-- `GET /reviews/movies/{movie_id}/reviews` - Get all reviews for a movie
-- `GET /reviews/reviews/{review_id}` - Get a specific review
-- `PUT /reviews/reviews/{review_id}` - Update a review (requires authentication, owner only)
-- `DELETE /reviews/reviews/{review_id}` - Delete a review (requires authentication, owner only)
+- `POST /movies/{movie_id}/reviews` - Create a review for a movie (requires authentication)
+- `GET /movies/{movie_id}/reviews` - Get all reviews for a movie
+- `GET /reviews/{review_id}` - Get a specific review
+- `PUT /reviews/{review_id}` - Update a review (requires authentication, owner only)
+- `DELETE /reviews/{review_id}` - Delete a review (requires authentication, owner only)
 
-## 🔧 Environment Variables
+## Environment Variables
 
 Create a `.env` file with the following variables:
 
@@ -95,14 +104,14 @@ ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
 ```bash
 curl -X POST "http://localhost:8000/auth/register" \
      -H "Content-Type: application/json" \
-     -d '{"username": "john_doe", "email": "john@example.com", "password": "password123"}'
+     -d '{"username": "prashanth", "email": "prashanth@gmail.com", "password": "pg123"}'
 ```
 
 #### Login
 ```bash
 curl -X POST "http://localhost:8000/auth/login" \
      -H "Content-Type: application/x-www-form-urlencoded" \
-     -d "username=john_doe&password=password123"
+     -d "username=prashanth&password=pg123"
 ```
 
 #### Create a Movie (with authentication)
@@ -110,15 +119,15 @@ curl -X POST "http://localhost:8000/auth/login" \
 curl -X POST "http://localhost:8000/movies/" \
      -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
      -H "Content-Type: application/json" \
-     -d '{"title": "The Matrix", "description": "A computer hacker learns from mysterious rebels about the true nature of his reality.", "genre": "Sci-Fi", "release_year": 1999}'
+     -d '{"title": "Puli", "description": "A Bahubali inspired movie", "genre": "Periodic- Drama", "release_year": 2015}'
 ```
 
 #### Add a Review
 ```bash
-curl -X POST "http://localhost:8000/reviews/movies/1/reviews" \
+curl -X POST "http://localhost:8000/movies/1/reviews" \
      -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
      -H "Content-Type: application/json" \
-     -d '{"rating": 9.5, "comment": "Amazing movie with groundbreaking special effects!"}'
+     -d '{"rating": 6.9, "comment": "Amazing movie with groundbreaking special effects!"}'
 ```
 
 ## Security Features
@@ -166,6 +175,17 @@ The API returns appropriate HTTP status codes:
 - `404`: Not Found
 - `422`: Validation Error
 
+### Docker
+
+Build and run with Docker:
+
+```bash
+# Build image
+docker build -t movie-review-api .
+
+# Run container (loads env from .env and exposes port 8000)
+docker run --env-file .env -p 8000:8000 movie-review-api
+```
 
 ## License
 
