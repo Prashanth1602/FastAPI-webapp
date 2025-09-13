@@ -2,7 +2,7 @@
 
 A **production-ready REST API** for managing movies and user reviews, built with **FastAPI** and **PostgreSQL**, featuring advanced authentication, refresh token rotation, secure session management, role-based access control, and high-performance search capabilities.
 
-![Architecture Diagram](architecture.png)
+![alt text](<Movie Review API Architecture - visual selection.png>)
 
 ---
 
