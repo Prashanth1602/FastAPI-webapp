@@ -14,7 +14,6 @@ A **production-ready REST API** for managing movies and user reviews, built with
 ![Redis](https://img.shields.io/badge/Redis-7+-red)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow)
-![Tests](https://github.com/actions/workflows/tests.yml/badge.svg)
 
 ---
 
