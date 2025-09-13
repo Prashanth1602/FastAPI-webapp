@@ -1,10 +1,11 @@
 from typing import List
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.models import Movie, User
-from app.schemas import MovieCreate, MovieResponse
+from app.schemas import MovieCreate, MovieResponse, MovieSearchResponse
 from app.database import get_db
 from app.dependencies import get_current_user, require_role
+from sqlalchemy import func
 
 router = APIRouter()
 
@@ -33,6 +34,32 @@ def get_movies(
 ):
     movies = db.query(Movie).offset(skip).limit(limit).all()
     return movies
+
+@router.get("/search", response_model=List[MovieSearchResponse])
+def search_movies(db: Session = Depends(get_db), q: str = Query(..., min_length=1)):
+    ts_query = func.plainto_tsquery(q)
+
+    results = db.query(
+        Movie,
+        func.coalesce(
+            func.ts_rank_cd(Movie.search_vector, ts_query),
+            func.similarity(Movie.title, q)
+        ).label("score")
+    ).filter(
+        (Movie.search_vector.op('@@')(ts_query)) |
+        (Movie.title.ilike(f"%{q}%")) |
+        (func.similarity(Movie.title, q) > 0.2)
+    ).order_by(
+        func.coalesce(
+            func.ts_rank_cd(Movie.search_vector, ts_query),
+            func.similarity(Movie.title, q)
+        ).desc()
+    ).all()
+
+    if not results:
+        raise HTTPException(status_code=404, detail="No movies found matching")
+
+    return [r[0] for r in results]
 
 @router.get("/{movie_id}", response_model=MovieResponse)
 def get_movie(movie_id: int, db: Session = Depends(get_db)):
@@ -74,3 +101,4 @@ def delete_movie(
     db.delete(movie)
     db.commit()
     return None
+

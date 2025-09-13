@@ -4,6 +4,8 @@ from datetime import timedelta
 from sqlalchemy.types import DateTime
 from datetime import datetime
 
+from sqlalchemy.dialects.postgresql import TSVECTOR
+
 Base = declarative_base()
 
 class User(Base):
@@ -33,6 +35,8 @@ class Movie(Base):
     release_year = Column(Integer, nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     
+    search_vector = Column(TSVECTOR)
+
     # Create indexes for commonly searched fields
     __table_args__ = (
         Index('idx_movie_title', 'title'),

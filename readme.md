@@ -9,8 +9,9 @@ A production-ready REST API for managing movies and user reviews, built with Fas
 * **Refresh Token Rotation**: Stateful refresh tokens with automatic rotation and revocation
 * **Logout**: Endpoint to revoke all refresh tokens for a user
 * **Movie Management**: Full CRUD operations for movies (restricted by role)
+* **Advanced Search**: Multi-layered search with full-text search, fuzzy matching, and relevance ranking
 * **Review System**: Users can create, read, update, and delete reviews for movies
-* **Database**: PostgreSQL with SQLAlchemy ORM
+* **Database**: PostgreSQL with SQLAlchemy ORM and optimized search indexes
 * **Security**: Password hashing with bcrypt, JWT tokens, refresh token storage, input validation, CORS protection
 * **Testing**: Comprehensive test suite with pytest
 
@@ -44,6 +45,7 @@ A production-ready REST API for managing movies and user reviews, built with Fas
 
    * Create a PostgreSQL database named `moviedb`
    * Apply migrations with Alembic: `alembic upgrade head`
+   * Seed the database with sample movies: `python -m app.seeding.seed`
 
 4. **Run the Backend**
 
@@ -82,6 +84,7 @@ alembic upgrade head
 ### Movies
 
 * `GET /movies/` - Get all movies (paginated)
+* `GET /movies/search?q={query}` - Search movies with advanced full-text search
 * `POST /movies/` - Create a new movie (requires admin role)
 * `GET /movies/{movie_id}` - Get a specific movie
 * `PUT /movies/{movie_id}` - Update a movie (requires admin role)
@@ -94,6 +97,56 @@ alembic upgrade head
 * `GET /reviews/{review_id}` - Get a specific review
 * `PUT /reviews/{review_id}` - Update a review (requires authentication, owner only)
 * `DELETE /reviews/{review_id}` - Delete a review (requires authentication, owner only)
+
+## Advanced Search Functionality
+
+The API includes a sophisticated search system that combines multiple search techniques for optimal results:
+
+### Search Features
+
+* **Full-Text Search**: PostgreSQL's built-in full-text search with ranking
+* **Fuzzy Matching**: Trigram similarity for handling typos and partial matches
+* **Case-Insensitive Search**: ILIKE fallback for basic pattern matching
+* **Relevance Ranking**: Results ordered by relevance score (best matches first)
+
+### Search Implementation
+
+* **Search Vector**: Automatically generated from movie title, genre, and description
+* **GIN Index**: High-performance index for fast full-text search queries
+* **Multi-layered Search**: Combines three search methods for comprehensive results
+* **Minimum Query Length**: Requires at least 1 character to prevent empty searches
+
+### Usage Examples
+
+```bash
+# Search for movies by title
+GET /movies/search?q=baahubali
+
+# Search for movies by genre
+GET /movies/search?q=action
+
+# Search with partial matches
+GET /movies/search?q=rrr
+
+# Search with typos (fuzzy matching)
+GET /movies/search?q=bahubali
+```
+
+### Search Response
+
+Returns a list of movies matching the search query, ordered by relevance:
+
+```json
+[
+  {
+    "id": 1,
+    "title": "Baahubali: The Beginning",
+    "description": "An adventurous story of two brothers vying for the throne.",
+    "genre": "Action/Drama",
+    "release_year": 2015
+  }
+]
+```
 
 ## Security Features
 
@@ -154,6 +207,9 @@ MovieReviewAPI/
 │   ├── main.py
 │   ├── models.py
 │   ├── schemas.py
+│   ├── seeding/
+│   │   ├── movies.json
+│   │   └── seed.py
 │   └── utils.py
 ├── routers/
 │   ├── auth.py

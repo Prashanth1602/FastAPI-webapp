@@ -68,3 +68,13 @@ class TokenResponse(BaseModel):
 
 class TokenRequest(BaseModel):
     refresh_token: str
+
+class MovieSearchResponse(BaseModel):
+    id: int
+    title: str
+    description: str | None = None
+    genre : str | None = None
+    release_year: int | None = None
+
+    class Config:
+        from_attributes = True
