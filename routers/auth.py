@@ -5,9 +5,8 @@ from app.models import User, RefreshToken
 from app.schemas import UserCreate, UserOut, Token, TokenRequest, TokenResponse
 from app.database import get_db
 from app.utils import hash_password, verify_password, create_access_token, create_refresh_token, decode_refresh_token
-from jose import JWTError
-from datetime import datetime, timedelta
-from app.dependencies import get_current_user
+from app.token_cleanup import cleanup_expired_tokens, cleanup_revoked_tokens, get_token_stats
+from app.dependencies import get_current_user, require_role
 
 router = APIRouter()
 
@@ -50,7 +49,6 @@ def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = D
    access_token = create_access_token(data={"sub": str(user.id)})
    refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
-   # Save refresh token to database
    db_refresh_token = RefreshToken(
        user_id=user.id,
        token=refresh_token
@@ -101,3 +99,39 @@ def logout_user(request: TokenRequest, db: Session = Depends(get_db), current_us
     token_in_db.revoked = True
     db.commit()
     return {"message": "Logged out successfully"}
+
+@router.post("/auth/cleanup-tokens")
+def cleanup_tokens_endpoint(current_user: User = Depends(require_role("admin"))):
+    try:
+        expired_count = cleanup_expired_tokens()
+        revoked_count = cleanup_revoked_tokens()
+        stats = get_token_stats()
+        
+        return {
+            "message": "Token cleanup completed successfully",
+            "expired_tokens_removed": expired_count,
+            "revoked_tokens_removed": revoked_count,
+            "current_stats": stats
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Token cleanup failed: {str(e)}"
+        )
+
+@router.get("/auth/token-stats")
+def get_token_statistics(current_user: User = Depends(require_role("admin"))):
+  
+    try:
+        stats = get_token_stats()
+        if stats is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve token statistics"
+            )
+        return stats
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get token stats: {str(e)}"
+        )

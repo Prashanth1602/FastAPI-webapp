@@ -2,6 +2,8 @@
 
 A production-ready REST API for managing movies and user reviews, built with FastAPI and PostgreSQL, including advanced authentication features with JWT, refresh token rotation, secure session management, and role-based access control.
 
+![alt text](architecture.png)
+
 ## Features
 
 * **User Authentication**: JWT-based authentication with registration and login
@@ -9,7 +11,10 @@ A production-ready REST API for managing movies and user reviews, built with Fas
 * **Refresh Token Rotation**: Stateful refresh tokens with automatic rotation and revocation
 * **Logout**: Endpoint to revoke all refresh tokens for a user
 * **Movie Management**: Full CRUD operations for movies (restricted by role)
+* **Modular Architecture**: Clean separation of concerns with dedicated modules for admin operations and search functionality
 * **Advanced Search**: Multi-layered search with full-text search, fuzzy matching, and relevance ranking
+* **Redis Caching**: High-performance caching for search results with automatic cache invalidation
+* **Token Management**: Automatic cleanup of expired and revoked refresh tokens
 * **Review System**: Users can create, read, update, and delete reviews for movies
 * **Database**: PostgreSQL with SQLAlchemy ORM and optimized search indexes
 * **Security**: Password hashing with bcrypt, JWT tokens, refresh token storage, input validation, CORS protection
@@ -47,7 +52,13 @@ A production-ready REST API for managing movies and user reviews, built with Fas
    * Apply migrations with Alembic: `alembic upgrade head`
    * Seed the database with sample movies: `python -m app.seeding.seed`
 
-4. **Run the Backend**
+4. **Redis Setup**
+
+   * Install Redis server: `brew install redis` (macOS) or `sudo apt-get install redis-server` (Ubuntu)
+   * Start Redis server: `redis-server`
+   * Install Redis Python client: `pip install redis`
+
+5. **Run the Backend**
 
    ```bash
    uvicorn app.main:app --reload
@@ -80,15 +91,20 @@ alembic upgrade head
 * `POST /auth/login` - Login and get access token and refresh token
 * `POST /auth/refresh` - Refresh access token using a refresh token (rotation enabled)
 * `POST /auth/logout` - Revoke all refresh tokens for the current user
+* `POST /auth/cleanup-tokens` - Clean up expired and revoked tokens (admin only)
+* `GET /auth/token-stats` - Get refresh token statistics (admin only)
 
 ### Movies
 
 * `GET /movies/` - Get all movies (paginated)
-* `GET /movies/search?q={query}` - Search movies with advanced full-text search
-* `POST /movies/` - Create a new movie (requires admin role)
 * `GET /movies/{movie_id}` - Get a specific movie
+* `POST /movies/` - Create a new movie (requires admin role)
 * `PUT /movies/{movie_id}` - Update a movie (requires admin role)
 * `DELETE /movies/{movie_id}` - Delete a movie (requires admin role)
+
+### Search
+
+* `GET /search/?q={query}` - Search movies with advanced full-text search and Redis caching
 
 ### Reviews
 
@@ -114,6 +130,7 @@ The API includes a sophisticated search system that combines multiple search tec
 * **Search Vector**: Automatically generated from movie title, genre, and description
 * **GIN Index**: High-performance index for fast full-text search queries
 * **Multi-layered Search**: Combines three search methods for comprehensive results
+* **Redis Caching**: Search results cached for 5 minutes to improve performance
 * **Minimum Query Length**: Requires at least 1 character to prevent empty searches
 
 ### Usage Examples
@@ -146,6 +163,136 @@ Returns a list of movies matching the search query, ordered by relevance:
     "release_year": 2015
   }
 ]
+```
+
+## Modular Architecture
+
+The API follows a modular monolithic architecture that provides clean separation of concerns while maintaining simplicity and ease of deployment:
+
+### Module Organization
+
+* **Movies Module** (`/movies`): Handles all movie-related operations
+  - Basic read operations (list, get by ID)
+  - Administrative operations (create, update, delete)
+  - Role-based access control for admin functions
+
+* **Search Module** (`/search`): Dedicated search functionality
+  - Advanced full-text search with Redis caching
+  - Optimized for high-performance search operations
+  - Separate endpoint for better organization
+
+* **Authentication Module** (`/auth`): User authentication and token management
+  - User registration and login
+  - JWT token management with refresh token rotation
+  - Token cleanup and statistics
+
+* **Reviews Module**: Movie review system
+  - User reviews with rating and comments
+  - Owner-based access control
+
+### Benefits of Modular Approach
+
+* **Separation of Concerns**: Each module handles specific functionality
+* **Maintainability**: Easier to maintain and update individual modules
+* **Code Organization**: Clear structure with dedicated files for each concern
+* **Performance**: Search module optimized with dedicated caching
+* **Security**: Admin operations properly isolated with role-based access
+* **Simplicity**: Single deployment unit with clear module boundaries
+
+### Module Integration
+
+Modules are integrated through FastAPI's router system with appropriate prefixes:
+
+```python
+app.include_router(auth.router, prefix="/auth")                    # Authentication
+app.include_router(movies.router, prefix="/movies")                # Basic movie operations
+app.include_router(search_service.router, prefix="/search")        # Search functionality
+app.include_router(admin_service.router, prefix="/movies")         # Admin operations
+app.include_router(reviews.router)                                 # Reviews
+```
+
+## Redis Caching
+
+The API implements Redis caching to significantly improve search performance and reduce database load:
+
+### Caching Strategy
+
+* **Search Result Caching**: All search queries are cached for 5 minutes (300 seconds)
+* **Cache Key**: Lowercase search query used as cache key
+* **Cache Miss Handling**: Database query executed and results cached for future requests
+* **JSON Serialization**: Search results serialized as JSON for efficient storage
+* **Automatic Cache Invalidation**: Cache automatically cleared when movies are created, updated, or deleted
+* **Smart Invalidation**: Targeted cache invalidation for specific movie titles to minimize cache clearing
+
+### Performance Benefits
+
+* **Faster Response Times**: Cached results returned instantly without database queries
+* **Reduced Database Load**: Popular searches don't hit the database repeatedly
+* **Scalability**: Handles high concurrent search requests efficiently
+* **Memory Efficient**: Redis handles memory management and expiration automatically
+
+### Cache Implementation
+
+```python
+# Cache check before database query
+cached = get_cached(q.lower())
+if cached:
+    return cached
+
+# Database query and cache storage
+movies = [r[0] for r in results]
+set_cache(q.lower(), [MovieSearchResponse.from_orm(m).dict() for m in movies])
+```
+
+### Redis Configuration
+
+* **Host**: Configurable via `REDIS_HOST` environment variable (default: localhost)
+* **Port**: Configurable via `REDIS_PORT` environment variable (default: 6379)
+* **Database**: Configurable via `REDIS_DB` environment variable (default: 0)
+* **TTL**: 300 seconds (5 minutes)
+* **Decode Responses**: Enabled for automatic string conversion
+* **Error Handling**: Graceful fallback when Redis is unavailable
+
+### Cache Invalidation Features
+
+* **Automatic Invalidation**: Cache cleared when movies are modified
+* **Smart Invalidation**: Only relevant cache entries are cleared
+* **Error Resilience**: Cache operations don't fail the main request if Redis is down
+
+## Token Management & Cleanup
+
+The API includes comprehensive token management to maintain database performance and security:
+
+### Token Cleanup Features
+
+* **Automatic Cleanup**: Expired refresh tokens are automatically identified and can be cleaned up
+* **Revoked Token Cleanup**: Revoked tokens are removed to keep the database clean
+* **Manual Cleanup**: Admin endpoints for manual token cleanup operations
+* **Token Statistics**: Monitoring endpoints to track token usage and database health
+
+### Cleanup Implementation
+
+* **Expired Token Detection**: Tokens past their expiration date are identified
+* **Revoked Token Detection**: Tokens marked as revoked are identified
+* **Batch Cleanup**: Efficient batch deletion of multiple tokens
+* **Error Handling**: Graceful error handling during cleanup operations
+* **Logging**: Comprehensive logging for monitoring cleanup operations
+
+### Admin Endpoints
+
+* **`POST /auth/cleanup-tokens`**: Manually trigger token cleanup (admin only)
+* **`GET /auth/token-stats`**: Get refresh token statistics (admin only)
+
+### Usage Examples
+
+```bash
+# Clean up expired and revoked tokens
+curl -X POST "http://localhost:8000/auth/cleanup-tokens" \
+  -H "Authorization: Bearer <admin_token>"
+
+# Get token statistics
+curl -X GET "http://localhost:8000/auth/token-stats" \
+  -H "Authorization: Bearer <admin_token>"
 ```
 
 ## Security Features
@@ -201,27 +348,32 @@ Returns a list of movies matching the search query, ordered by relevance:
 
 ```
 MovieReviewAPI/
-├── app/
-│   ├── database.py
-│   ├── dependencies.py
-│   ├── main.py
-│   ├── models.py
-│   ├── schemas.py
-│   ├── seeding/
-│   │   ├── movies.json
-│   │   └── seed.py
-│   └── utils.py
-├── routers/
-│   ├── auth.py
-│   ├── movies.py
-│   └── reviews.py
-├── tests/
-├── alembic/
-├── Dockerfile
-├── env.example
-├── pyproject.toml
-├── readme.md
-└── requirements.txt
+├── app/                          # Core application modules
+│   ├── database.py              # Database configuration and session management
+│   ├── dependencies.py          # FastAPI dependencies (auth, roles)
+│   ├── main.py                  # Application entry point and router registration
+│   ├── models.py                # SQLAlchemy database models
+│   ├── redis_client.py          # Redis caching utilities
+│   ├── schemas.py               # Pydantic request/response schemas
+│   ├── seeding/                 # Database seeding utilities
+│   │   ├── movies.json          # Sample movie data
+│   │   └── seed.py              # Seeding script
+│   ├── token_cleanup.py         # Token management utilities
+│   └── utils.py                 # Authentication and utility functions
+├── routers/                     # API route modules
+│   ├── auth.py                  # Authentication routes
+│   ├── movies.py                # Basic movie operations
+│   ├── reviews.py               # Review management routes
+│   └── services/                # Specialized service modules
+│       ├── admin_service.py     # Admin-only movie operations
+│       └── search_service.py    # Advanced search functionality
+├── tests/                       # Test suite
+├── alembic/                     # Database migrations
+├── Dockerfile                   # Container configuration
+├── env.example                  # Environment variables template
+├── pyproject.toml              # Project configuration
+├── readme.md                   # Documentation
+└── requirements.txt            # Python dependencies
 ```
 
 ## Docker
